@@ -17,6 +17,8 @@
 #define RW_MODE false
 #define RO_MODE true
 
+#define QUICK_SETUP true
+
 // one try is done every 100ms
 #define WIFI_MAX_TRIES 50
 
@@ -98,10 +100,12 @@ void setup() {
   delay(2000);
 
   // starting setup
-  //lcd.setCursor(0, 0);
-  //lcd.print("Starting setup");
   Serial.println("Starting setup");
-  //delay(2000);
+  if(!QUICK_SETUP) {
+    lcd.setCursor(0, 0);
+    lcd.print("Starting setup");
+    delay(2000);
+  }
 
   // setupping preferences
   preferences.begin("settings", RO_MODE);
@@ -123,14 +127,16 @@ void setup() {
     preferences.end();
     preferences.begin("settings", RO_MODE);
   }
-  //lcd.clear();
-  //lcd.setCursor(0, 0);
-  //lcd.print("Ok init pref");
-  //lcd.setCursor(6, 1);
-  //lcd.print("continuing");
   Serial.println("Ok init pref");
   Serial.println("continuing");
-  //delay(2000);
+  if(!QUICK_SETUP) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Ok init pref");
+    lcd.setCursor(6, 1);
+    lcd.print("continuing");
+    delay(2000);
+  }
 
   // initializing nfc
   mfrc522.PCD_Init();    // Init MFRC522 board.
@@ -138,36 +144,46 @@ void setup() {
   for (byte i = 0; i < 6; i++) {
     key.keyByte[i] = 0xFF;
   }
-  //lcd.clear();
-  //lcd.setCursor(0, 0);
-  //lcd.print("Ok init nfc");
-  //lcd.setCursor(6, 1);
-  //lcd.print("continuing");
   Serial.println("Ok init nfc");
   Serial.println("continuing");
-  //delay(2000);
+  if(!QUICK_SETUP) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Ok init nfc");
+    lcd.setCursor(6, 1);
+    lcd.print("continuing");
+    delay(2000);
+  }
 
   // testing audio output
-  //lcd.clear();
-  //lcd.setCursor(0, 0);
-  //lcd.print("Testing audio");
   Serial.println("Testing audio");
-  //delay(1000);
+  if(!QUICK_SETUP) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Testing audio");
+    delay(1000);
+  }
   playMelody(welcomeMelody);
-  //delay(1000);
-  //lcd.setCursor(6, 1);
-  //lcd.print("continuing");
   Serial.println("continuing");
-  //delay(2000);
+  if(!QUICK_SETUP) {
+    delay(1000);
+    lcd.setCursor(6, 1);
+    lcd.print("continuing");
+    delay(2000);
+  }
 
-  wifiConnect();
-  //delay(2000);
+  wifiConnect(!QUICK_SETUP);
+  if(!QUICK_SETUP) {
+    delay(2000);
+  }
 
-  //lcd.clear();
-  //lcd.setCursor(0, 0);
-  //lcd.print("Setup complete");
   Serial.println("Setup complete");
-  //delay(2000);
+  if(!QUICK_SETUP) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Setup complete");
+    delay(2000);
+  }
 
   lcd.clear();
   lcd.setCursor(11, 1);
@@ -199,9 +215,9 @@ void loop() {
   } else {
     if(WiFi.status() != WL_CONNECTED) {
       Serial.println("\nUnable to connect to WiFi");
-      //lcd.clear();
-      //lcd.setCursor(0, 0);
-      //lcd.print("Connection error");
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Connection error");
     } else {
       loginUser();
     }
@@ -212,37 +228,43 @@ void loop() {
   RESET_LOOP;
 }
 
-bool wifiConnect() {
+bool wifiConnect(bool lcdLog) {
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
   WiFi.begin(preferences.getString("wifi_ssid"), preferences.getString("wifi_pass"));
   Serial.println("Connecting to WiFi ");
-  //lcd.clear();
-  //lcd.setCursor(0, 0);
-  //lcd.print("Connecting wifi");
+  if(lcdLog) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Connecting wifi");
+  }
   for(int tries = 0; WIFI_MAX_TRIES > tries && WiFi.status() != WL_CONNECTED; tries++){
     if(0 == tries % 10) Serial.print(".");
     delay(100);
   }
   if(WiFi.status() != WL_CONNECTED) {
     Serial.println("\nUnable to connect to WiFi");
-    //lcd.clear();
-    //lcd.setCursor(0, 0);
-    //lcd.print("Err init wifi");
-    //lcd.setCursor(6, 1);
-    //lcd.print("continuing");
+    if(lcdLog) {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Err init wifi");
+      lcd.setCursor(6, 1);
+      lcd.print("continuing");
+    }
     return false;
   } else {
     Serial.println("\nConnected to WiFi");
     Serial.print("Local ESP32 IP: ");
     Serial.println(WiFi.localIP());
-    //lcd.clear();
-    //lcd.setCursor(0, 0);
-    //lcd.print("Ok init wifi");
-    //lcd.setCursor(6, 1);
-    //lcd.print("continuing");
     Serial.println("Ok init wifi");
     Serial.println("continuing");
+    if(lcdLog) {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Ok init wifi");
+      lcd.setCursor(6, 1);
+      lcd.print("continuing");
+    }
     return true;
   }
 }
@@ -528,7 +550,7 @@ bool loadSettings() {
   Serial.println("Loaded new wifi pass.");
 
   // refreshing the wifi connection
-  wifiConnect();
+  wifiConnect(true);
 
   delay(500);
   Serial.println("Settings loaded.");
