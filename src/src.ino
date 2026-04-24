@@ -31,7 +31,8 @@
 #define SETTINGS_WIFI_PASS_BLOCK_1 (byte)12
 #define SETTINGS_WIFI_PASS_BLOCK_2 (byte)13
 #define SETTINGS_WIFI_PASS_BLOCK_3 (byte)14
-#define NAME_BLOCK (byte)8
+#define USER_NAME_BLOCK (byte)8
+#define USER_UID_BLOCK (byte)9
 #define SETTINGS_STRING_BUFFER_SIZE 54
 #define PREFERENCES_STRING_PLACEHOLDER "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\0"
 
@@ -50,17 +51,18 @@
   lcd.print("Ready"); \
   return
 
-Preferences preferences;
+const Preferences preferences;
 
-HTTPClient http;
+const HTTPClient http;
+const String LOGIN_PATHNAME String("/stamp");
 
-LiquidCrystal_I2C lcd(0x27, 16, 2);  // initialize the Liquid Crystal Display object with the I2C address 0x27, 16 columns and 2 rows
+const LiquidCrystal_I2C lcd(0x27, 16, 2);  // initialize the Liquid Crystal Display object with the I2C address 0x27, 16 columns and 2 rows
 
 // Learn more about using SPI/I2C or check the pin assigment for your board: https://github.com/OSSLibraries/Arduino_MFRC522v2#pin-layout
-MFRC522DriverPinSimple ss_pin(5);
-MFRC522DriverSPI driver{ss_pin}; // Create SPI driver
+const MFRC522DriverPinSimple ss_pin(5);
+const MFRC522DriverSPI driver{ss_pin}; // Create SPI driver
 //MFRC522DriverI2C driver{};     // Create I2C driver
-MFRC522 mfrc522{driver};         // Create MFRC522 instance
+const MFRC522 mfrc522{driver};         // Create MFRC522 instance
 
 MFRC522::MIFARE_Key key;
 byte blockBufferSize = 18;
@@ -109,9 +111,13 @@ void setup() {
     preferences.putString("pref_pass", PREFERENCES_STRING_PLACEHOLDER);
     preferences.putString("wifi_ssid", PREFERENCES_STRING_PLACEHOLDER);
     preferences.putString("wifi_pass", PREFERENCES_STRING_PLACEHOLDER);
+    preferences.putString("api_server", PREFERENCES_STRING_PLACEHOLDER);
+    preferences.putString("api_auth_token", PREFERENCES_STRING_PLACEHOLDER);
     preferences.putString("pref_pass", "password");
-    preferences.putString("wifi_ssid", "ssid");
-    preferences.putString("wifi_pass", "pass");
+    preferences.putString("wifi_ssid", "wifi_ssid");
+    preferences.putString("wifi_pass", "wifi_pass");
+    preferences.putString("api_server", "api_server");
+    preferences.putString("api_auth_token", "api_auth_token");
     preferences.putBool("init", true);
 
     preferences.end();
@@ -179,7 +185,13 @@ void loop() {
 
   if(!gatherFlags()) { RESET_LOOP; };
   
-  if(!IS_CARD_ENABLED) { Serial.println("Card is disabled"); RESET_LOOP; };
+  if(!IS_CARD_ENABLED) {
+    Serial.println("Card is disabled");
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Card is disabled");
+    RESET_LOOP;
+  };
 
   playMelody(readMelody);
   if(IS_CARD_SETTINGS) {
@@ -205,6 +217,9 @@ bool wifiConnect() {
   WiFi.disconnect();
   WiFi.begin(preferences.getString("wifi_ssid"), preferences.getString("wifi_pass"));
   Serial.println("Connecting to WiFi ");
+  //lcd.clear();
+  //lcd.setCursor(0, 0);
+  //lcd.print("Connecting wifi");
   for(int tries = 0; WIFI_MAX_TRIES > tries && WiFi.status() != WL_CONNECTED; tries++){
     if(0 == tries % 10) Serial.print(".");
     delay(100);
@@ -287,51 +302,64 @@ void loginUser() {
     lcd.print("Error");
 
   } else {
+
     Serial.print("User name: ");
     for (byte i = 1; i <= tmpBuffer1[0]; i++) {
       tmpBuffer2[i - 1] = tmpBuffer1[i];
       Serial.print((char)tmpBuffer1[i], HEX);  // Print as character
-   }
+    }
     tmpBuffer2[tmpBuffer1[0]] = '\0';
     Serial.println();
-  
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////
+    
+    if (mfrc522.MIFARE_Read(USER_UID_BLOCK, tmpBuffer1, &blockBufferSize) != 0) {
+      Serial.println("Card corrupted");
 
-    http.begin(HOST_NAME + PATH_NAME + "?" + queryString);
-    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
-    int httpCode = http.GET();
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Card corrupted");
+      lcd.setCursor(11, 1);
+      lcd.print("Error");
 
-    // httpCode will be negative on error
-    if (httpCode > 0) {
-      // file found at server
-      if (httpCode == HTTP_CODE_OK) {
-        String payload = http.getString();
-        Serial.println(payload);
-      } else {
-        // HTTP header has been send and Server response header has been handled
-        Serial.printf("[HTTP] GET/POST... code: %d\n", httpCode);
-      }
     } else {
-      Serial.printf("[HTTP] GET/POST... failed, error: %s\n", http.errorToString(httpCode).c_str());
+
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+      http.begin(preferences.getString("api_server") + LOGIN_PATHNAME + "/" + String(tmpBuffer1));
+      http.addHeader("Authorization", preferences.getString("api_auth_token"));
+      int httpCode = http.GET();
+
+      // httpCode will be negative on error
+      if (httpCode > 0) {
+        // file found at server
+        if (httpCode == HTTP_CODE_OK) {
+          String payload = http.getString();
+          Serial.println(payload);
+        } else {
+          // HTTP header has been send and Server response header has been handled
+          Serial.printf("[HTTP] GET/POST... code: %d\n", httpCode);
+        }
+      } else {
+        Serial.printf("[HTTP] GET/POST... failed, error: %s\n", http.errorToString(httpCode).c_str());
+      }
+
+      http.end();
+
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+      playMelody(welcomeMelody);
+
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print((char *)tmpBuffer2);
+      lcd.setCursor(9, 1);
+      lcd.print("Welcome");
     }
-
-    http.end();
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    playMelody(readMelody);
-
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print((char *)tmpBuffer2);
-    lcd.setCursor(9, 1);
-    lcd.print("Welcome");
   }
 }
 
@@ -388,10 +416,7 @@ bool loadWifiSsid() {
   }
   Serial.println("Read wifi ssid block 3");
 
-  for (byte i = 1; i <= settings_string_buffer_1[0]; i++) {
-    settings_string_buffer_2[i - 1] = settings_string_buffer_1[i];
-  }
-  settings_string_buffer_2[settings_string_buffer_1[0]] = '\0';
+  parseStringBuffer((void*)settings_string_buffer_1, (void*)settings_string_buffer_2, SETTINGS_STRING_BUFFER_SIZE);
 
   preferences.end();
   preferences.begin("settings", RW_MODE);
@@ -426,10 +451,7 @@ bool loadWifiPass() {
   }
   Serial.println("Read wifi pass block 3");
 
-  for (byte i = 1; i <= settings_string_buffer_1[0]; i++) {
-    settings_string_buffer_2[i - 1] = settings_string_buffer_1[i];
-  }
-  settings_string_buffer_2[settings_string_buffer_1[0]] = '\0';
+  parseStringBuffer((void*)settings_string_buffer_1, (void*)settings_string_buffer_2, SETTINGS_STRING_BUFFER_SIZE);
 
   preferences.end();
   preferences.begin("settings", RW_MODE);
@@ -437,6 +459,15 @@ bool loadWifiPass() {
 
   preferences.end();
   preferences.begin("settings", RO_MODE);
+}
+
+bool parseStringBuffer(void* from, void* to, int maxBufferSize) {
+  for (byte i = 1; i <= from[0] && i < SETTINGS_STRING_BUFFER_SIZE; i++) {
+    to[i - 1] = from[i];
+  }
+  to[from[0]] = '\0';
+
+  return true;
 }
 
 bool loadSettings() {
@@ -471,7 +502,7 @@ bool loadSettings() {
     Serial.println("Password is valid.");
   }
 
-  /*
+  // hopefully it works
   if(!loadWifiSsid()) {
     Serial.println("Its now safe to remove the card.");
 
@@ -483,9 +514,7 @@ bool loadSettings() {
     return false;
   }
   Serial.println("Loaded new wifi ssid.");
-  */
 
-  /*
   if(!loadWifiPass()) {
     Serial.println("Its now safe to remove the card.");
 
@@ -497,7 +526,6 @@ bool loadSettings() {
     return false;
   }
   Serial.println("Loaded new wifi pass.");
-  */
 
   // refreshing the wifi connection
   wifiConnect();
