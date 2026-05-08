@@ -33,6 +33,8 @@
 #define SETTINGS_WIFI_PASS_BLOCK_1 (byte)12
 #define SETTINGS_WIFI_PASS_BLOCK_2 (byte)13
 #define SETTINGS_WIFI_PASS_BLOCK_3 (byte)14
+#define SETTINGS_API_AUTH_TOKEN_BLOCK_1 (byte)16
+#define SETTINGS_API_AUTH_TOKEN_BLOCK_2 (byte)17
 #define USER_NAME_BLOCK (byte)8
 #define USER_UID_BLOCK (byte)9
 #define SETTINGS_STRING_BUFFER_SIZE 50
@@ -113,11 +115,11 @@ void setup() {
   if(!preferences.isKey("init")){
     preferences.end();
     preferences.begin("settings", RW_MODE);
-    preferences.putString("pref_pass", PREFERENCES_STRING_PLACEHOLDER);
-    preferences.putString("wifi_ssid", PREFERENCES_STRING_PLACEHOLDER);
-    preferences.putString("wifi_pass", PREFERENCES_STRING_PLACEHOLDER);
-    preferences.putString("api_server", PREFERENCES_STRING_PLACEHOLDER);
-    preferences.putString("api_auth_token", PREFERENCES_STRING_PLACEHOLDER);
+    //preferences.putString("pref_pass", PREFERENCES_STRING_PLACEHOLDER);
+    //preferences.putString("wifi_ssid", PREFERENCES_STRING_PLACEHOLDER);
+    //preferences.putString("wifi_pass", PREFERENCES_STRING_PLACEHOLDER);
+    //preferences.putString("api_server", PREFERENCES_STRING_PLACEHOLDER);
+    //preferences.putString("api_auth_token", PREFERENCES_STRING_PLACEHOLDER);
     preferences.putString("pref_pass", "password");
     preferences.putString("wifi_ssid", "wifi_ssid");
     preferences.putString("wifi_pass", "wifi_pass");
@@ -491,9 +493,37 @@ bool loadWifiPass() {
   return true;
 }
 
+bool loadApiAuthToken() {
+  if(mfrc522.PCD_Authenticate(KEY_A, SETTINGS_API_AUTH_TOKEN_BLOCK_1, &key, &(mfrc522.uid)) != 0) {
+    Serial.println("Authentication failed for api auth token sector");
+    return false;
+  }
+  Serial.println("Api auth token sector authenticated");
+
+  if (mfrc522.MIFARE_Read(SETTINGS_API_AUTH_TOKEN_BLOCK_1, settings_string_buffer_1, &blockBufferSize) != 0) {
+    Serial.println("Unable to read api auth token block 1");
+    return false;
+  }
+  Serial.println("Read api auth token block 1");
+
+  if (mfrc522.MIFARE_Read(SETTINGS_API_AUTH_TOKEN_BLOCK_2, settings_string_buffer_1 + actualBlockSize, &blockBufferSize) != 0) {
+    Serial.println("Unable to read api auth token block 2");
+    return false;
+  }
+  Serial.println("Read api token block 2");
+
+  parseStringBuffer(settings_string_buffer_1, settings_string_buffer_2, SETTINGS_STRING_BUFFER_SIZE);
+
+  preferences.begin("settings", RW_MODE);
+  preferences.putString("api_auth_token", (char*)settings_string_buffer_2);
+  preferences.end();
+
+  return true;
+}
+
 bool parseStringBuffer(byte* from, byte* to, int maxBufferSize) {
 
-  for (byte i = 0; i <= from[0] && i < SETTINGS_STRING_BUFFER_SIZE; i++) {
+  for (byte i = 0; i <= from[0] && i < maxBufferSize; i++) {
     to[i] = from[i + 1];
   }
   to[from[0] + 1] = '\0';
@@ -535,6 +565,18 @@ bool loadSettings() {
     return false;
   }
   Serial.println("Password is valid.");
+  delay(1000);
+
+  if(!loadApiAuthToken()) {
+    Serial.println("Its now safe to remove the card.");
+
+    lcd.setCursor(0, 0);
+    lcd.print("Error");
+    lcd.setCursor(0, 1);
+    lcd.print("REMOVE CARD");
+    return false;
+  }
+  Serial.println("Loaded new api auth token.");
   delay(1000);
 
   // hopefully it works
