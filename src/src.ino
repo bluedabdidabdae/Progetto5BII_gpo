@@ -125,7 +125,7 @@ void setup() {
     preferences.putString("pref_pass", "password");
     preferences.putString("wifi_ssid", "wifi_ssid");
     preferences.putString("wifi_pass", "wifi_pass");
-    preferences.putString("api_server", "nfc.rosa.onl");
+    preferences.putString("api_server", "api_server");
     preferences.putString("api_auth_token", "api_auth_token");
     preferences.putBool("init", true);
 
