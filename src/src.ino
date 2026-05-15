@@ -60,7 +60,7 @@
 Preferences preferences;
 
 HTTPClient http;
-String LOGIN_PATHNAME = String("/stamp");
+String LOGIN_PATHNAME = String("/stamp/");
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);  // initialize the Liquid Crystal Display object with the I2C address 0x27, 16 columns and 2 rows
 
@@ -359,8 +359,7 @@ bool loginUser() {
   ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
   preferences.begin("settings", RO_MODE);
-  http.begin(preferences.getString("api_server") + LOGIN_PATHNAME + "/stamp/" + String((char*)tmpBuffer1));
-  http.begin("google.com");
+  http.begin("https://" + preferences.getString("api_server") + LOGIN_PATHNAME + String((char*)tmpBuffer1));
   http.addHeader("Authorization", preferences.getString("api_auth_token"));
   int httpCode = http.GET();
   preferences.end();
