@@ -8,6 +8,8 @@
 
 #include <LiquidCrystal_I2C.h>
 
+#include <ArduinoJson.h>
+
 #include <MFRC522v2.h>
 #include <MFRC522DriverSPI.h>
 //#include <MFRC522DriverI2C.h>
@@ -38,7 +40,7 @@
 #define SETTINGS_API_SERVER_BLOCK_1 (byte)20
 #define SETTINGS_API_SERVER_BLOCK_2 (byte)21
 #define USER_NAME_BLOCK (byte)8
-#define USER_UID_BLOCK (byte)9
+#define USER_UID_BLOCK (byte)10
 #define SETTINGS_STRING_BUFFER_SIZE 50
 #define PREFERENCES_STRING_PLACEHOLDER "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\0"
 
@@ -61,6 +63,8 @@ Preferences preferences;
 
 HTTPClient http;
 String LOGIN_PATHNAME = String("/stamp/");
+
+JsonDocument doc;
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);  // initialize the Liquid Crystal Display object with the I2C address 0x27, 16 columns and 2 rows
 
@@ -364,12 +368,19 @@ bool loginUser() {
   int httpCode = http.GET();
   preferences.end();
 
+  DeserializationError error;
+
   // httpCode will be negative on error
   if (httpCode > 0) {
     // file found at server
     if (httpCode == HTTP_CODE_OK) {
       String payload = http.getString();
       Serial.println(payload);
+      error = deserializeJson(doc, payload);
+
+      if(error) {
+        Serial.println("failed to parse json response");
+      }
     } else {
       // HTTP header has been send and Server response header has been handled
       Serial.printf("[HTTP] GET/POST... code: %d\n", httpCode);
@@ -389,7 +400,13 @@ bool loginUser() {
 
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print((char *)tmpBuffer2);
+  if(error) {
+    lcd.print("User");
+  } else {
+    if(doc["name"].is<String>()) {
+      lcd.print(doc["name"].as<const char*>());
+    }
+  }
   lcd.setCursor(9, 1);
   lcd.print("Welcome");
 
