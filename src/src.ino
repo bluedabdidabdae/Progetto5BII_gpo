@@ -35,6 +35,8 @@
 #define SETTINGS_WIFI_PASS_BLOCK_3 (byte)14
 #define SETTINGS_API_AUTH_TOKEN_BLOCK_1 (byte)16
 #define SETTINGS_API_AUTH_TOKEN_BLOCK_2 (byte)17
+#define SETTINGS_API_SERVER_BLOCK_1 (byte)20
+#define SETTINGS_API_SERVER_BLOCK_2 (byte)21
 #define USER_NAME_BLOCK (byte)8
 #define USER_UID_BLOCK (byte)9
 #define SETTINGS_STRING_BUFFER_SIZE 50
@@ -357,7 +359,7 @@ bool loginUser() {
   ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
   preferences.begin("settings", RO_MODE);
-  http.begin(preferences.getString("api_server") + LOGIN_PATHNAME + "/" + String((char*)tmpBuffer1));
+  http.begin(preferences.getString("api_server") + LOGIN_PATHNAME + "/stamp/" + String((char*)tmpBuffer1));
   http.begin("google.com");
   http.addHeader("Authorization", preferences.getString("api_auth_token"));
   int httpCode = http.GET();
@@ -521,6 +523,34 @@ bool loadApiAuthToken() {
   return true;
 }
 
+bool loadApiServer() {
+  if(mfrc522.PCD_Authenticate(KEY_A, SETTINGS_API_SERVER_BLOCK_1, &key, &(mfrc522.uid)) != 0) {
+    Serial.println("Authentication failed for api server sector");
+    return false;
+  }
+  Serial.println("Api auth token sector authenticated");
+
+  if (mfrc522.MIFARE_Read(SETTINGS_API_SERVER_BLOCK_1, settings_string_buffer_1, &blockBufferSize) != 0) {
+    Serial.println("Unable to read api server block 1");
+    return false;
+  }
+  Serial.println("Read api server block 1");
+
+  if (mfrc522.MIFARE_Read(SETTINGS_API_SERVER_BLOCK_2, settings_string_buffer_1 + actualBlockSize, &blockBufferSize) != 0) {
+    Serial.println("Unable to read api server block 2");
+    return false;
+  }
+  Serial.println("Read api server block 2");
+
+  parseStringBuffer(settings_string_buffer_1, settings_string_buffer_2, SETTINGS_STRING_BUFFER_SIZE);
+
+  preferences.begin("settings", RW_MODE);
+  preferences.putString("api_server", (char*)settings_string_buffer_2);
+  preferences.end();
+
+  return true;
+}
+
 bool parseStringBuffer(byte* from, byte* to, int maxBufferSize) {
 
   for (byte i = 0; i <= from[0] && i < maxBufferSize; i++) {
@@ -568,7 +598,7 @@ bool loadSettings() {
   delay(1000);
 
   if(!loadApiAuthToken()) {
-    Serial.println("Its now safe to remove the card.");
+    Serial.println("<< ERROR >> Its now safe to remove the card.");
 
     lcd.setCursor(0, 0);
     lcd.print("Error");
@@ -579,9 +609,21 @@ bool loadSettings() {
   Serial.println("Loaded new api auth token.");
   delay(1000);
 
-  // hopefully it works
+  if(!loadApiServer()) {
+    Serial.println("<< ERROR >> Its now safe to remove the card.");
+
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Error");
+    lcd.setCursor(0, 1);
+    lcd.print("REMOVE CARD");
+    return false;
+  }
+  Serial.println("Loaded new api server.");
+  delay(1000);
+  
   if(!loadWifiSsid()) {
-    Serial.println("Its now safe to remove the card.");
+    Serial.println("<< ERROR >> Its now safe to remove the card.");
 
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -594,7 +636,7 @@ bool loadSettings() {
   delay(1000);
 
   if(!loadWifiPass()) {
-    Serial.println("Its now safe to remove the card.");
+    Serial.println("<< ERROR >> Its now safe to remove the card.");
 
     lcd.clear();
     lcd.setCursor(0, 0);
