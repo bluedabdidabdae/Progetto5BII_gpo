@@ -77,9 +77,9 @@ MFRC522 mfrc522{driver};         // Create MFRC522 instance
 MFRC522::MIFARE_Key key;
 byte blockBufferSize = 18;
 byte actualBlockSize = 16;
-byte flags_buffer[18];
-byte tmpBuffer1[18];
-byte tmpBuffer2[18];
+byte flags_buffer[18] = { '\0' };
+byte tmpBuffer1[18] = { '\0' };
+byte tmpBuffer2[18] = { '\0' };
 byte uid_buffer[5] = { '\0' };
 byte settings_string_buffer_1[SETTINGS_STRING_BUFFER_SIZE + 1] = { '\0' };
 byte settings_string_buffer_2[SETTINGS_STRING_BUFFER_SIZE + 1] = { '\0' };
@@ -434,6 +434,7 @@ bool checkPrefPassword() {
     Serial.println("Unable to read password block 2");
     return false;
   }
+  
   for(int i = 0; i < saved_password.length() && password_is_valid; i++) {
     if(saved_password[i] != settings_string_buffer_1[i]) {
       password_is_valid = false;
