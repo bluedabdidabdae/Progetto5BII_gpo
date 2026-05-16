@@ -468,7 +468,7 @@ bool loadWifiSsid() {
   }
   Serial.println("Read wifi ssid block 3");
 
-  parseStringBuffer(settings_string_buffer_1, settings_string_buffer_2, SETTINGS_STRING_BUFFER_SIZE);
+  parseStructuredStringBuffer(settings_string_buffer_1, settings_string_buffer_2, SETTINGS_STRING_BUFFER_SIZE);
 
   preferences.begin("settings", RW_MODE);
   preferences.putString("wifi_ssid", (char*)settings_string_buffer_2);
@@ -502,7 +502,7 @@ bool loadWifiPass() {
   }
   Serial.println("Read wifi pass block 3");
 
-  parseStringBuffer(settings_string_buffer_1, settings_string_buffer_2, SETTINGS_STRING_BUFFER_SIZE);
+  parseStructuredStringBuffer(settings_string_buffer_1, settings_string_buffer_2, SETTINGS_STRING_BUFFER_SIZE);
 
   preferences.begin("settings", RW_MODE);
   preferences.putString("wifi_pass", (char*)settings_string_buffer_2);
@@ -511,6 +511,9 @@ bool loadWifiPass() {
   return true;
 }
 
+/*
+* token is fixed size of 2 blocks
+*/
 bool loadApiAuthToken() {
   if(mfrc522.PCD_Authenticate(KEY_A, SETTINGS_API_AUTH_TOKEN_BLOCK_1, &key, &(mfrc522.uid)) != 0) {
     Serial.println("Authentication failed for api auth token sector");
@@ -530,10 +533,8 @@ bool loadApiAuthToken() {
   }
   Serial.println("Read api token block 2");
 
-  parseStringBuffer(settings_string_buffer_1, settings_string_buffer_2, SETTINGS_STRING_BUFFER_SIZE);
-
   preferences.begin("settings", RW_MODE);
-  preferences.putString("api_auth_token", (char*)settings_string_buffer_2);
+  preferences.putString("api_auth_token", (char*)settings_string_buffer_1);
   preferences.end();
 
   return true;
@@ -558,7 +559,7 @@ bool loadApiServer() {
   }
   Serial.println("Read api server block 2");
 
-  parseStringBuffer(settings_string_buffer_1, settings_string_buffer_2, SETTINGS_STRING_BUFFER_SIZE);
+  parseStructuredStringBuffer(settings_string_buffer_1, settings_string_buffer_2, SETTINGS_STRING_BUFFER_SIZE);
 
   preferences.begin("settings", RW_MODE);
   preferences.putString("api_server", (char*)settings_string_buffer_2);
@@ -567,7 +568,7 @@ bool loadApiServer() {
   return true;
 }
 
-bool parseStringBuffer(byte* from, byte* to, int maxBufferSize) {
+bool parseStructuredStringBuffer(byte* from, byte* to, int maxBufferSize) {
 
   for (byte i = 0; i <= from[0] && i < maxBufferSize; i++) {
     to[i] = from[i + 1];
