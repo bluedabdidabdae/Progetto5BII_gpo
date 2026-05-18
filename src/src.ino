@@ -59,6 +59,8 @@
   lcd.print("Ready"); \
   return
 
+const bool is_serial_present;
+
 Preferences preferences;
 
 HTTPClient http;
@@ -97,19 +99,25 @@ void setup() {
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Serial absent");
+    is_serial_present = false;
   } else {
     lcd.setCursor(0, 0);
     lcd.print("Serial present");
     Serial.println();
     Serial.println("Hello There");
+    is_serial_present = true;
   }
   lcd.setCursor(6, 1);
   lcd.print("continuing");
-  Serial.println("continuing");
+  if(is_serial_present) {
+    Serial.println("continuing");
+  }
   delay(2000);
 
   // starting setup
-  Serial.println("Starting setup");
+  if(is_serial_present){
+    Serial.println("Starting setup");
+  }
   if(!QUICK_SETUP) {
     lcd.setCursor(0, 0);
     lcd.print("Starting setup");
@@ -135,8 +143,11 @@ void setup() {
 
     preferences.end();
   }
-  Serial.println("Ok init pref");
-  Serial.println("continuing");
+  if(is_serial_present){
+    Serial.println("Ok init pref");
+    Serial.println("continuing");
+  }
+  
   if(!QUICK_SETUP) {
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -148,12 +159,16 @@ void setup() {
 
   // initializing nfc
   mfrc522.PCD_Init();    // Init MFRC522 board.
-  MFRC522Debug::PCD_DumpVersionToSerial(mfrc522, Serial);
+  if(is_serial_present){
+    MFRC522Debug::PCD_DumpVersionToSerial(mfrc522, Serial);
+  }
   for (byte i = 0; i < 6; i++) {
     key.keyByte[i] = 0xFF;
   }
-  Serial.println("Ok init nfc");
-  Serial.println("continuing");
+  if(is_serial_present){
+    Serial.println("Ok init nfc");
+    Serial.println("continuing");
+  }
   if(!QUICK_SETUP) {
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -164,7 +179,9 @@ void setup() {
   }
 
   // testing audio output
-  Serial.println("Testing audio");
+  if(is_serial_present){
+    Serial.println("Testing audio");
+  }
   if(!QUICK_SETUP) {
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -172,7 +189,9 @@ void setup() {
     delay(1000);
   }
   playMelody(welcomeMelody);
-  Serial.println("continuing");
+  if(is_serial_present){
+    Serial.println("continuing");
+  }
   if(!QUICK_SETUP) {
     delay(1000);
     lcd.setCursor(6, 1);
@@ -185,7 +204,9 @@ void setup() {
     delay(2000);
   }
 
-  Serial.println("Setup complete");
+  if(is_serial_present){
+    Serial.println("Setup complete");
+  }
   if(!QUICK_SETUP) {
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -196,7 +217,9 @@ void setup() {
   lcd.clear();
   lcd.setCursor(11, 1);
   lcd.print("Ready");
-  Serial.println("Ready");
+  if(is_serial_present){
+    Serial.println("Ready");
+  }
 }
 
 void loop() {
@@ -210,7 +233,9 @@ void loop() {
   if(!gatherFlags()) { RESET_LOOP; };
   
   if(!IS_CARD_ENABLED) {
-    Serial.println("Card is disabled");
+    if(is_serial_present){
+      Serial.println("Card is disabled");
+    }
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Card is disabled");
@@ -222,7 +247,9 @@ void loop() {
     loadSettings();
   } else {
     if(WiFi.status() != WL_CONNECTED) {
-      Serial.println("\nUnable to connect to WiFi");
+      if(is_serial_present){
+        Serial.println("\nUnable to connect to WiFi");
+      }
       lcd.clear();
       lcd.setCursor(0, 0);
       lcd.print("Connection error");
@@ -241,19 +268,25 @@ bool wifiConnect(bool lcdLog) {
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
   WiFi.begin(preferences.getString("wifi_ssid"), preferences.getString("wifi_pass"));
-  Serial.println("Connecting to WiFi ");
+  if(is_serial_present){
+    Serial.println("Connecting to WiFi ");
+  }
   if(lcdLog) {
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Connecting wifi");
   }
   for(int tries = 0; WIFI_MAX_TRIES > tries && WiFi.status() != WL_CONNECTED; tries++){
-    if(0 == tries % 10) Serial.print(".");
+    if(is_serial_present){
+      if(0 == tries % 10) Serial.print(".");
+    }
     delay(100);
   }
 
   if(WiFi.status() != WL_CONNECTED) {
-    Serial.println("\nUnable to connect to WiFi");
+    if(is_serial_present){
+      Serial.println("\nUnable to connect to WiFi");
+    }
     if(lcdLog) {
       lcd.clear();
       lcd.setCursor(0, 0);
@@ -265,11 +298,14 @@ bool wifiConnect(bool lcdLog) {
     return false;
   }
 
-  Serial.println("\nConnected to WiFi");
-  Serial.print("Local ESP32 IP: ");
-  Serial.println(WiFi.localIP());
-  Serial.println("Ok init wifi");
-  Serial.println("continuing");
+  if(is_serial_present){
+    Serial.println("\nConnected to WiFi");
+    Serial.print("Local ESP32 IP: ");
+    Serial.println(WiFi.localIP());
+    Serial.println("Ok init wifi");
+    Serial.println("continuing");
+  }
+  
   if(lcdLog) {
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -283,12 +319,16 @@ bool wifiConnect(bool lcdLog) {
 
 bool gatherFlags() {
   if(mfrc522.PCD_Authenticate(KEY_A, FLAG_BLOCK, &key, &(mfrc522.uid)) != 0) {
-    Serial.println("Authentication failed for flags sector");
+    if(is_serial_present){
+      Serial.println("Authentication failed for flags sector");
+    }
     return false;
   }
 
   if (mfrc522.MIFARE_Read(FLAG_BLOCK, flags_buffer, &blockBufferSize) != 0) {
-    Serial.println("Unable to read flags sector");
+    if(is_serial_present){
+      Serial.println("Unable to read flags sector");
+    }
 
     lcd.clear();
     lcd.setCursor(11, 1);
@@ -296,24 +336,32 @@ bool gatherFlags() {
     return false;
   }
 
-  Serial.println("FLAGS");
-  Serial.print("enabled: ");
-  Serial.println(IS_CARD_ENABLED);
-  Serial.print("settings: ");
-  Serial.println(IS_CARD_SETTINGS);
-  Serial.println("END OF FLAGS");
-
+  if(is_serial_present){
+    Serial.println("FLAGS");
+    Serial.print("enabled: ");
+    Serial.println(IS_CARD_ENABLED);
+    Serial.print("settings: ");
+    Serial.println(IS_CARD_SETTINGS);
+    Serial.println("END OF FLAGS");
+  }
+  
   return true;
 }
 
 bool gatherUID() {
   // Dump UID into serial and save to variable
-  Serial.print("Card UID: ");
+  if(is_serial_present){
+    Serial.print("Card UID: ");
+  }
   for (byte i = 0; i < mfrc522.uid.size; i++) {
-    Serial.print(mfrc522.uid.uidByte[i], HEX);
+    if(is_serial_present){
+      Serial.print(mfrc522.uid.uidByte[i], HEX);
+    }
     uid_buffer[i] = mfrc522.uid.uidByte[i];
   }
-  Serial.println();
+  if(is_serial_present){
+    Serial.println();
+  }
 
   return true;
 }
@@ -321,32 +369,17 @@ bool gatherUID() {
 bool loginUser() {
 
   // authenticate sector
-  if (mfrc522.PCD_Authenticate(KEY_A, USER_NAME_BLOCK, &key, &(mfrc522.uid)) != 0) {
-    Serial.println("Authentication failed");
+  if (mfrc522.PCD_Authenticate(KEY_A, USER_UID_BLOCK, &key, &(mfrc522.uid)) != 0) {
+    if(is_serial_present){
+      Serial.println("Authentication failed");
+    }
     return false;
   }
-
-  if (mfrc522.MIFARE_Read(USER_NAME_BLOCK, tmpBuffer1, &blockBufferSize) != 0) {
-    Serial.println("Card corrupted");
-
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Card corrupted");
-    lcd.setCursor(11, 1);
-    lcd.print("Error");
-    return false;
-  }
-
-  Serial.print("User name: ");
-  for (byte i = 1; i <= tmpBuffer1[0]; i++) {
-    tmpBuffer2[i - 1] = tmpBuffer1[i];
-    Serial.print((char)tmpBuffer1[i], HEX);  // Print as character
-  }
-  tmpBuffer2[tmpBuffer1[0]] = '\0';
-  Serial.println();
   
   if (mfrc522.MIFARE_Read(USER_UID_BLOCK, tmpBuffer1, &blockBufferSize) != 0) {
-    Serial.println("Card corrupted");
+    if(is_serial_present){
+      Serial.println("Card corrupted");
+    }
 
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -375,18 +408,26 @@ bool loginUser() {
     // file found at server
     if (httpCode == HTTP_CODE_OK) {
       String payload = http.getString();
-      Serial.println(payload);
+      if(is_serial_present){
+        Serial.println(payload);
+      }
       error = deserializeJson(doc, payload);
 
       if(error) {
-        Serial.println("failed to parse json response");
+        if(is_serial_present){
+          Serial.println("failed to parse json response");
+        }
       }
     } else {
       // HTTP header has been send and Server response header has been handled
-      Serial.printf("[HTTP] GET/POST... code: %d\n", httpCode);
+      if(is_serial_present){
+        Serial.printf("[HTTP] GET/POST... code: %d\n", httpCode);
+      }
     }
   } else {
-    Serial.printf("[HTTP] GET/POST... failed, error: %s\n", http.errorToString(httpCode).c_str());
+    if(is_serial_present){
+      Serial.printf("[HTTP] GET/POST... failed, error: %s\n", http.errorToString(httpCode).c_str());
+    }
   }
 
   http.end();
@@ -397,6 +438,20 @@ bool loginUser() {
   ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
   playMelody(welcomeMelody);
+  
+  if(is_serial_present){
+    Serial.print("User name: ");
+  }
+  for (byte i = 1; i <= tmpBuffer1[0]; i++) {
+    tmpBuffer2[i - 1] = tmpBuffer1[i];
+    if(is_serial_present){
+      Serial.print((char)tmpBuffer1[i], HEX);  // Print as character
+    }
+  }
+  tmpBuffer2[tmpBuffer1[0]] = '\0';
+  if(is_serial_present){
+    Serial.println();
+  }
 
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -421,17 +476,23 @@ bool checkPrefPassword() {
   bool password_is_valid = true;
 
   if(mfrc522.PCD_Authenticate(KEY_A, SETTINGS_PASSWORD_BLOCK_1, &key, &(mfrc522.uid)) != 0) {
-    Serial.println("Authentication failed for flags sector");
+    if(is_serial_present){
+      Serial.println("Authentication failed for flags sector");
+    }
     return false;
   }
 
   if (mfrc522.MIFARE_Read(SETTINGS_PASSWORD_BLOCK_1, settings_string_buffer_1, &blockBufferSize) != 0) {
-    Serial.println("Unable to read password block 1");
+    if(is_serial_present){
+      Serial.println("Unable to read password block 1");
+    }
     return false;
   }
 
   if (mfrc522.MIFARE_Read(SETTINGS_PASSWORD_BLOCK_1, settings_string_buffer_1 + blockBufferSize, &blockBufferSize) != 0) {
-    Serial.println("Unable to read password block 2");
+    if(is_serial_present){
+      Serial.println("Unable to read password block 2");
+    }
     return false;
   }
   
@@ -446,28 +507,44 @@ bool checkPrefPassword() {
 
 bool loadWifiSsid() {
   if(mfrc522.PCD_Authenticate(KEY_A, SETTINGS_WIFI_SSID_BLOCK_1, &key, &(mfrc522.uid)) != 0) {
-    Serial.println("Authentication failed for wifi ssid sector");
+    if(is_serial_present){
+      Serial.println("Authentication failed for wifi ssid sector");
+    }
     return false;
   }
-  Serial.println("Wifi ssid sector authenticated");
+  if(is_serial_present){
+    Serial.println("Wifi ssid sector authenticated");
+  }
 
   if (mfrc522.MIFARE_Read(SETTINGS_WIFI_SSID_BLOCK_1, settings_string_buffer_1, &blockBufferSize) != 0) {
-    Serial.println("Unable to read wifi ssid block 1");
+    if(is_serial_present){
+      Serial.println("Unable to read wifi ssid block 1");
+    }
     return false;
   }
-  Serial.println("Read wifi ssid block 1");
+  if(is_serial_present){
+    Serial.println("Read wifi ssid block 1");
+  }
 
   if (mfrc522.MIFARE_Read(SETTINGS_WIFI_SSID_BLOCK_2, settings_string_buffer_1 + actualBlockSize, &blockBufferSize) != 0) {
-    Serial.println("Unable to read wifi ssid block 2");
+    if(is_serial_present){
+      Serial.println("Unable to read wifi ssid block 2");
+    }
     return false;
   }
-  Serial.println("Read wifi ssid block 2");
+  if(is_serial_present){
+    Serial.println("Read wifi ssid block 2");
+  }
 
   if (mfrc522.MIFARE_Read(SETTINGS_WIFI_SSID_BLOCK_3, settings_string_buffer_1 + actualBlockSize * 2, &blockBufferSize) != 0) {
-    Serial.println("Unable to read wifi ssid block 3");
+    if(is_serial_present){
+      Serial.println("Unable to read wifi ssid block 3");
+    }
     return false;
   }
-  Serial.println("Read wifi ssid block 3");
+  if(is_serial_present){
+    Serial.println("Read wifi ssid block 3");
+  }
 
   parseStructuredStringBuffer(settings_string_buffer_1, settings_string_buffer_2, SETTINGS_STRING_BUFFER_SIZE);
 
@@ -480,28 +557,44 @@ bool loadWifiSsid() {
 
 bool loadWifiPass() {
   if(mfrc522.PCD_Authenticate(KEY_A, SETTINGS_WIFI_PASS_BLOCK_1, &key, &(mfrc522.uid)) != 0) {
-    Serial.println("Authentication failed for wifi pass sector");
+    if(is_serial_present){
+      Serial.println("Authentication failed for wifi pass sector");
+    }
     return false;
   }
-  Serial.println("Wifi pass sector authenticated");
+  if(is_serial_present){
+    Serial.println("Wifi pass sector authenticated");
+  }
 
   if (mfrc522.MIFARE_Read(SETTINGS_WIFI_PASS_BLOCK_1, settings_string_buffer_1, &blockBufferSize) != 0) {
-    Serial.println("Unable to read wifi pass block 1");
+    if(is_serial_present){
+      Serial.println("Unable to read wifi pass block 1");
+    }
     return false;
   }
-  Serial.println("Read wifi pass block 1");
+  if(is_serial_present){
+    Serial.println("Read wifi pass block 1");
+  }
 
   if (mfrc522.MIFARE_Read(SETTINGS_WIFI_PASS_BLOCK_2, settings_string_buffer_1 + actualBlockSize, &blockBufferSize) != 0) {
-    Serial.println("Unable to read wifi pass block 2");
+    if(is_serial_present){
+      Serial.println("Unable to read wifi pass block 2");
+    }
     return false;
   }
-  Serial.println("Read wifi pass block 2");
+  if(is_serial_present){
+    Serial.println("Read wifi pass block 2");
+  }
 
   if (mfrc522.MIFARE_Read(SETTINGS_WIFI_PASS_BLOCK_3, settings_string_buffer_1 + actualBlockSize * 2, &blockBufferSize) != 0) {
-    Serial.println("Unable to read wifi pass block 3");
+    if(is_serial_present){
+      Serial.println("Unable to read wifi pass block 3");
+    }
     return false;
   }
-  Serial.println("Read wifi pass block 3");
+  if(is_serial_present){
+    Serial.println("Read wifi pass block 3");
+  }
 
   parseStructuredStringBuffer(settings_string_buffer_1, settings_string_buffer_2, SETTINGS_STRING_BUFFER_SIZE);
 
@@ -517,22 +610,34 @@ bool loadWifiPass() {
 */
 bool loadApiAuthToken() {
   if(mfrc522.PCD_Authenticate(KEY_A, SETTINGS_API_AUTH_TOKEN_BLOCK_1, &key, &(mfrc522.uid)) != 0) {
-    Serial.println("Authentication failed for api auth token sector");
+    if(is_serial_present){
+      Serial.println("Authentication failed for api auth token sector");
+    }
     return false;
   }
-  Serial.println("Api auth token sector authenticated");
+  if(is_serial_present){
+    Serial.println("Api auth token sector authenticated");
+  }
 
   if (mfrc522.MIFARE_Read(SETTINGS_API_AUTH_TOKEN_BLOCK_1, settings_string_buffer_1, &blockBufferSize) != 0) {
-    Serial.println("Unable to read api auth token block 1");
+    if(is_serial_present){
+      Serial.println("Unable to read api auth token block 1");
+    }
     return false;
   }
-  Serial.println("Read api auth token block 1");
+  if(is_serial_present){
+    Serial.println("Read api auth token block 1");
+  }
 
   if (mfrc522.MIFARE_Read(SETTINGS_API_AUTH_TOKEN_BLOCK_2, settings_string_buffer_1 + actualBlockSize, &blockBufferSize) != 0) {
-    Serial.println("Unable to read api auth token block 2");
+    if(is_serial_present){
+      Serial.println("Unable to read api auth token block 2");
+    }
     return false;
   }
-  Serial.println("Read api token block 2");
+  if(is_serial_present){
+    Serial.println("Read api token block 2");
+  }
 
   preferences.begin("settings", RW_MODE);
   preferences.putString("api_auth_token", (char*)settings_string_buffer_1);
@@ -543,22 +648,34 @@ bool loadApiAuthToken() {
 
 bool loadApiServer() {
   if(mfrc522.PCD_Authenticate(KEY_A, SETTINGS_API_SERVER_BLOCK_1, &key, &(mfrc522.uid)) != 0) {
-    Serial.println("Authentication failed for api server sector");
+    if(is_serial_present){
+      Serial.println("Authentication failed for api server sector");
+    }
     return false;
   }
-  Serial.println("Api auth token sector authenticated");
+  if(is_serial_present){
+    Serial.println("Api auth token sector authenticated");
+  }
 
   if (mfrc522.MIFARE_Read(SETTINGS_API_SERVER_BLOCK_1, settings_string_buffer_1, &blockBufferSize) != 0) {
-    Serial.println("Unable to read api server block 1");
+    if(is_serial_present){
+      Serial.println("Unable to read api server block 1");
+    }
     return false;
   }
-  Serial.println("Read api server block 1");
+  if(is_serial_present){
+    Serial.println("Read api server block 1");
+  }
 
   if (mfrc522.MIFARE_Read(SETTINGS_API_SERVER_BLOCK_2, settings_string_buffer_1 + actualBlockSize, &blockBufferSize) != 0) {
-    Serial.println("Unable to read api server block 2");
+    if(is_serial_present){
+      Serial.println("Unable to read api server block 2");
+    }
     return false;
   }
-  Serial.println("Read api server block 2");
+  if(is_serial_present){
+    Serial.println("Read api server block 2");
+  }
 
   parseStructuredStringBuffer(settings_string_buffer_1, settings_string_buffer_2, SETTINGS_STRING_BUFFER_SIZE);
 
@@ -587,24 +704,30 @@ bool loadSettings() {
   lcd.setCursor(0, 1);
   lcd.print("NO REMOVE CARD");
 
-  Serial.println("Settings card detected.");
-  Serial.println("-----------------------------------------");
-  Serial.println("<< DO NOT REMOVE CARD UNTIL COMPLETION >>");
-  Serial.println("<< DO NOT REMOVE CARD UNTIL COMPLETION >>");
-  Serial.println("<< DO NOT REMOVE CARD UNTIL COMPLETION >>");
-  Serial.println("-----------------------------------------");
-
+  if(is_serial_present){
+    Serial.println("Settings card detected.");
+    Serial.println("-----------------------------------------");
+    Serial.println("<< DO NOT REMOVE CARD UNTIL COMPLETION >>");
+    Serial.println("<< DO NOT REMOVE CARD UNTIL COMPLETION >>");
+    Serial.println("<< DO NOT REMOVE CARD UNTIL COMPLETION >>");
+    Serial.println("-----------------------------------------");
+  }
+  
   delay(1500);
 
   lcd.setCursor(0, 0);
   lcd.print("Loading settings");
-  Serial.println("Loading settings.");
+  if(is_serial_present){
+    Serial.println("Loading settings.");
+  }
 
   delay(1000);
 
   if(!checkPrefPassword()) {
-    Serial.println("Invalid password.");
-    Serial.println("Its now safe to remove the card.");
+    if(is_serial_present){
+      Serial.println("Invalid password.");
+      Serial.println("Its now safe to remove the card.");
+    }
 
     lcd.setCursor(0, 0);
     lcd.print("Error");
@@ -612,11 +735,15 @@ bool loadSettings() {
     lcd.print("REMOVE CARD");
     return false;
   }
-  Serial.println("Password is valid.");
+  if(is_serial_present){
+    Serial.println("Password is valid.");
+  }
   delay(1000);
 
   if(!loadApiAuthToken()) {
-    Serial.println("<< ERROR >> Its now safe to remove the card.");
+    if(is_serial_present){
+      Serial.println("<< ERROR >> Its now safe to remove the card.");
+    }
 
     lcd.setCursor(0, 0);
     lcd.print("Error");
@@ -624,11 +751,15 @@ bool loadSettings() {
     lcd.print("REMOVE CARD");
     return false;
   }
-  Serial.println("Loaded new api auth token.");
+  if(is_serial_present){
+    Serial.println("Loaded new api auth token.");
+  }
   delay(1000);
 
   if(!loadApiServer()) {
-    Serial.println("<< ERROR >> Its now safe to remove the card.");
+    if(is_serial_present){
+      Serial.println("<< ERROR >> Its now safe to remove the card.");
+    }
 
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -637,11 +768,15 @@ bool loadSettings() {
     lcd.print("REMOVE CARD");
     return false;
   }
-  Serial.println("Loaded new api server.");
+  if(is_serial_present){
+    Serial.println("Loaded new api server.");
+  }
   delay(1000);
   
   if(!loadWifiSsid()) {
-    Serial.println("<< ERROR >> Its now safe to remove the card.");
+    if(is_serial_present){
+      Serial.println("<< ERROR >> Its now safe to remove the card.");
+    }
 
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -650,11 +785,15 @@ bool loadSettings() {
     lcd.print("REMOVE CARD");
     return false;
   }
-  Serial.println("Loaded new wifi ssid.");
+  if(is_serial_present){
+    Serial.println("Loaded new wifi ssid.");
+  }
   delay(1000);
 
   if(!loadWifiPass()) {
-    Serial.println("<< ERROR >> Its now safe to remove the card.");
+    if(is_serial_present){
+      Serial.println("<< ERROR >> Its now safe to remove the card.");
+    }
 
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -663,15 +802,19 @@ bool loadSettings() {
     lcd.print("REMOVE CARD");
     return false;
   }
-  Serial.println("Loaded new wifi pass.");
+  if(is_serial_present){
+    Serial.println("Loaded new wifi pass.");
+  }
   delay(1000);
 
   // refreshing the wifi connection
   wifiConnect(true);
 
   delay(500);
-  Serial.println("Settings loaded.");
-  Serial.println("Its now safe to remove the card.");
+  if(is_serial_present){
+    Serial.println("Settings loaded.");
+    Serial.println("Its now safe to remove the card.");
+  }
 
   lcd.clear();
   lcd.setCursor(0, 0);
