@@ -19,7 +19,7 @@
 #define RW_MODE false
 #define RO_MODE true
 
-#define QUICK_SETUP true
+#define QUICK_SETUP false
 
 // one try is done every 100ms
 #define WIFI_MAX_TRIES 50
@@ -59,7 +59,7 @@
   lcd.print("Ready"); \
   return
 
-const bool is_serial_present;
+bool is_serial_present;
 
 Preferences preferences;
 
@@ -79,10 +79,10 @@ MFRC522 mfrc522{driver};         // Create MFRC522 instance
 MFRC522::MIFARE_Key key;
 byte blockBufferSize = 18;
 byte actualBlockSize = 16;
-byte flags_buffer[18] = { '\0' };
-byte tmpBuffer1[18] = { '\0' };
-byte tmpBuffer2[18] = { '\0' };
-byte uid_buffer[5] = { '\0' };
+byte flags_buffer[19] = { '\0' };
+byte tmpBuffer1[19] = { '\0' };
+byte tmpBuffer2[19] = { '\0' };
+byte uid_buffer[6] = { '\0' };
 byte settings_string_buffer_1[SETTINGS_STRING_BUFFER_SIZE + 1] = { '\0' };
 byte settings_string_buffer_2[SETTINGS_STRING_BUFFER_SIZE + 1] = { '\0' };
 
@@ -178,6 +178,11 @@ void setup() {
     delay(2000);
   }
 
+  wifiConnect(!QUICK_SETUP);
+  if(!QUICK_SETUP) {
+    delay(2000);
+  }
+
   // testing audio output
   if(is_serial_present){
     Serial.println("Testing audio");
@@ -196,11 +201,6 @@ void setup() {
     delay(1000);
     lcd.setCursor(6, 1);
     lcd.print("continuing");
-    delay(2000);
-  }
-
-  wifiConnect(!QUICK_SETUP);
-  if(!QUICK_SETUP) {
     delay(2000);
   }
 
@@ -387,7 +387,17 @@ bool loginUser() {
     lcd.setCursor(11, 1);
     lcd.print("Error");
     return false;
+  }
 
+  if(WiFi.status() != WL_CONNECTED) {
+    if(is_serial_present){
+      Serial.println("\nUnable to connect to WiFi");
+    }
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Err init wifi");
+    lcd.setCursor(6, 1);
+    lcd.print("continuing");
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -395,13 +405,18 @@ bool loginUser() {
   ///////////////////////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
+  arrayToString(tmpBuffer1, actualBlockSize, (char*)tmpBuffer2);
   preferences.begin("settings", RO_MODE);
-  http.begin("https://" + preferences.getString("api_server") + LOGIN_PATHNAME + String((char*)tmpBuffer1));
+  String request = "https://" + preferences.getString("api_server") + LOGIN_PATHNAME + formatUid(String((char*)tmpBuffer2));
+  if(is_serial_present){
+    Serial.println(request);
+  }
+  http.begin(request);
   http.addHeader("Authorization", preferences.getString("api_auth_token"));
   int httpCode = http.GET();
   preferences.end();
 
-  DeserializationError error;
+  DeserializationError jsonError;
 
   // httpCode will be negative on error
   if (httpCode > 0) {
@@ -411,18 +426,42 @@ bool loginUser() {
       if(is_serial_present){
         Serial.println(payload);
       }
-      error = deserializeJson(doc, payload);
+      jsonError = deserializeJson(doc, payload);
 
-      if(error) {
+      if(jsonError) {
         if(is_serial_present){
           Serial.println("failed to parse json response");
         }
+      } else {
+        if(is_serial_present){
+          Serial.print("User name: ");
+          if(jsonError) {
+            Serial.println("Unknown name");
+          }else if(doc["name"].is<String>()){
+            Serial.println(doc["name"].as<const char*>());
+          }
+        }
+      
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        if(jsonError) {
+          lcd.print("Unknown name");
+        } else if(doc["name"].is<String>()) {
+          lcd.print(doc["name"].as<const char*>());
+        }
+        lcd.setCursor(9, 1);
+        lcd.print("Welcome");
       }
     } else {
-      // HTTP header has been send and Server response header has been handled
       if(is_serial_present){
-        Serial.printf("[HTTP] GET/POST... code: %d\n", httpCode);
+        Serial.print("User does not exist");
       }
+    
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("User not exist");
+      lcd.setCursor(11, 1);
+      lcd.print("Error");
     }
   } else {
     if(is_serial_present){
@@ -437,35 +476,37 @@ bool loginUser() {
   ///////////////////////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  playMelody(welcomeMelody);
-  
-  if(is_serial_present){
-    Serial.print("User name: ");
-  }
-  for (byte i = 1; i <= tmpBuffer1[0]; i++) {
-    tmpBuffer2[i - 1] = tmpBuffer1[i];
-    if(is_serial_present){
-      Serial.print((char)tmpBuffer1[i], HEX);  // Print as character
-    }
-  }
-  tmpBuffer2[tmpBuffer1[0]] = '\0';
-  if(is_serial_present){
-    Serial.println();
-  }
-
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  if(error) {
-    lcd.print("User");
-  } else {
-    if(doc["name"].is<String>()) {
-      lcd.print(doc["name"].as<const char*>());
-    }
-  }
-  lcd.setCursor(9, 1);
-  lcd.print("Welcome");
-
   return true;
+}
+
+String formatUid(String uid) {
+  String output;
+  
+  for(int i = 0; i < uid.length(); i++){
+    
+    if(8 == i
+      || 12 == i
+      || 16 == i
+      || 20 == i ) {
+        output += '-';
+    }
+
+    output += uid.charAt(i);
+  }
+
+  return output;
+}
+
+void arrayToString(byte array[], unsigned int len, char buffer[])
+{
+    for (unsigned int i = 0; i < len; i++)
+    {
+        byte nib1 = (array[i] >> 4) & 0x0F;
+        byte nib2 = (array[i] >> 0) & 0x0F;
+        buffer[i*2+0] = nib1  < 0xA ? '0' + nib1  : 'A' + nib1  - 0xA;
+        buffer[i*2+1] = nib2  < 0xA ? '0' + nib2  : 'A' + nib2  - 0xA;
+    }
+    buffer[len*2] = '\0';
 }
 
 bool checkPrefPassword() {
@@ -654,7 +695,7 @@ bool loadApiServer() {
     return false;
   }
   if(is_serial_present){
-    Serial.println("Api auth token sector authenticated");
+    Serial.println("Api server sector authenticated");
   }
 
   if (mfrc522.MIFARE_Read(SETTINGS_API_SERVER_BLOCK_1, settings_string_buffer_1, &blockBufferSize) != 0) {
@@ -729,6 +770,7 @@ bool loadSettings() {
       Serial.println("Its now safe to remove the card.");
     }
 
+    lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Error");
     lcd.setCursor(0, 1);
@@ -745,6 +787,7 @@ bool loadSettings() {
       Serial.println("<< ERROR >> Its now safe to remove the card.");
     }
 
+    lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Error");
     lcd.setCursor(0, 1);
