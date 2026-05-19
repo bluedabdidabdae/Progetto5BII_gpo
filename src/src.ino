@@ -8,7 +8,7 @@
 
 #include <LiquidCrystal_I2C.h>
 
-#include <ArduinoJson.h>
+// #include <ArduinoJson.h>
 
 #include <MFRC522v2.h>
 #include <MFRC522DriverSPI.h>
@@ -66,7 +66,7 @@ Preferences preferences;
 HTTPClient http;
 String LOGIN_PATHNAME = String("/stamp/");
 
-JsonDocument doc;
+// JsonDocument doc;
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);  // initialize the Liquid Crystal Display object with the I2C address 0x27, 16 columns and 2 rows
 
@@ -416,7 +416,7 @@ bool loginUser() {
   int httpCode = http.GET();
   preferences.end();
 
-  DeserializationError jsonError;
+  // DeserializationError jsonError;
 
   // httpCode will be negative on error
   if (httpCode > 0) {
@@ -426,6 +426,7 @@ bool loginUser() {
       if(is_serial_present){
         Serial.println(payload);
       }
+  /*
       jsonError = deserializeJson(doc, payload);
 
       if(jsonError) {
@@ -439,24 +440,35 @@ bool loginUser() {
             Serial.println("Unknown name");
           }else if(doc["name"].is<String>()){
             Serial.println(doc["name"].as<const char*>());
-          }
         }
-      
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        if(jsonError) {
-          lcd.print("Unknown name");
-        } else if(doc["name"].is<String>()) {
-          lcd.print(doc["name"].as<const char*>());
-        }
-        lcd.setCursor(9, 1);
-        lcd.print("Welcome");
       }
+   
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      if(jsonError) {
+        lcd.print("Unknown name");
+      } else if(doc["name"].is<String>()) {
+        lcd.print(doc["name"].as<const char*>());
+      }
+      lcd.setCursor(9, 1);
+      lcd.print("Welcome");
+ */
+
+      if(is_serial_present){
+        Serial.print("User name: ");
+        Serial.println(payload);
+      }
+
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print(payload);
+      lcd.setCursor(9, 1);
+      lcd.print("Welcome");
     } else {
       if(is_serial_present){
         Serial.print("User does not exist");
       }
-    
+  
       lcd.clear();
       lcd.setCursor(0, 0);
       lcd.print("User not exist");
@@ -467,6 +479,13 @@ bool loginUser() {
     if(is_serial_present){
       Serial.printf("[HTTP] GET/POST... failed, error: %s\n", http.errorToString(httpCode).c_str());
     }
+    
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Connection fail");
+    lcd.setCursor(11, 1);
+    lcd.print("Error");
+    
   }
 
   http.end();
