@@ -407,14 +407,19 @@ bool loginUser() {
 
   arrayToString(tmpBuffer1, actualBlockSize, (char*)tmpBuffer2);
   preferences.begin("settings", RO_MODE);
-  String request = "https://" + preferences.getString("api_server") + LOGIN_PATHNAME + formatUid(String((char*)tmpBuffer2));
+  String request = "http://" + preferences.getString("api_server") + LOGIN_PATHNAME + formatUid(String((char*)tmpBuffer2));
   if(is_serial_present){
     Serial.println(request);
+    Serial.println("Using token: " + preferences.getString("api_auth_token"));
   }
   http.begin(request);
   http.addHeader("Authorization", preferences.getString("api_auth_token"));
   int httpCode = http.GET();
   preferences.end();
+
+  if(is_serial_present){
+    Serial.println("Request code response: " + String(httpCode));
+  }
 
   // DeserializationError jsonError;
 
@@ -610,6 +615,9 @@ bool loadWifiSsid() {
 
   preferences.begin("settings", RW_MODE);
   preferences.putString("wifi_ssid", (char*)settings_string_buffer_2);
+  if(is_serial_present){
+    Serial.println("Wifi ssid: " + preferences.getString("wifi_ssid"));
+  }
   preferences.end();
 
   return true;
@@ -660,6 +668,9 @@ bool loadWifiPass() {
 
   preferences.begin("settings", RW_MODE);
   preferences.putString("wifi_pass", (char*)settings_string_buffer_2);
+  if(is_serial_present){
+    Serial.println("Wifi pass: " + preferences.getString("wifi_pass"));
+  }
   preferences.end();
 
   return true;
@@ -698,9 +709,14 @@ bool loadApiAuthToken() {
   if(is_serial_present){
     Serial.println("Read api token block 2");
   }
-
+  
+  arrayToString(settings_string_buffer_1, actualBlockSize * 2, (char*)settings_string_buffer_2);
+  
   preferences.begin("settings", RW_MODE);
-  preferences.putString("api_auth_token", (char*)settings_string_buffer_1);
+  preferences.putString("api_auth_token", (char*)settings_string_buffer_2);
+  if(is_serial_present){
+    Serial.println("Api auth token: " + preferences.getString("api_auth_token"));
+  }
   preferences.end();
 
   return true;
